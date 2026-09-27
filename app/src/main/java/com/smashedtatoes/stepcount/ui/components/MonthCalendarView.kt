@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -140,8 +138,8 @@ fun MonthCalendarView(
                                     modifier = Modifier
                                         .weight(1f)
                                         .aspectRatio(1f)
-                                        .padding(2.dp)
-                                        .clip(CircleShape)
+                                        .padding(1.dp)
+                                        .clip(RoundedCornerShape(8.dp))
                                         .background(
                                             when {
                                                 isSelected -> NeonPink.copy(alpha = 0.4f)
@@ -153,15 +151,18 @@ fun MonthCalendarView(
                                         .border(
                                             width = if (isSelected) 1.5.dp else 0.dp,
                                             color = if (isSelected) NeonPink else Color.Transparent,
-                                            shape = CircleShape
+                                            shape = RoundedCornerShape(8.dp)
                                         )
                                         .clickable { selectedDate = date },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
                                         Text(
                                             text = dayNum.toString(),
-                                            fontSize = 12.sp,
+                                            fontSize = 11.sp,
                                             fontWeight = if (isSelected || isGoalReached) FontWeight.Bold else FontWeight.Normal,
                                             color = when {
                                                 isGoalReached -> NeonYellow
@@ -170,12 +171,12 @@ fun MonthCalendarView(
                                                 else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                                             }
                                         )
-                                        if (isGoalReached) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(4.dp)
-                                                    .clip(CircleShape)
-                                                    .background(NeonYellow)
+                                        if (steps > 0) {
+                                            Text(
+                                                text = formatStepCountShort(steps),
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = if (isGoalReached) NeonYellow else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
                                             )
                                         }
                                     }

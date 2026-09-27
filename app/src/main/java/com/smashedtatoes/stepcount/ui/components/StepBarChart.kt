@@ -20,6 +20,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
@@ -35,6 +36,14 @@ import com.smashedtatoes.stepcount.ui.theme.NeonYellow
 import com.smashedtatoes.stepcount.ui.theme.VaporwaveSurface
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+
+fun formatStepCountShort(steps: Int): String {
+    return when {
+        steps >= 10000 -> "${steps / 1000}k"
+        steps >= 1000 -> if (steps % 1000 < 100) "${steps / 1000}k" else "%.1fk".format(steps / 1000.0)
+        else -> steps.toString()
+    }
+}
 
 @Composable
 fun VaporwaveStepChart(
@@ -64,7 +73,7 @@ fun VaporwaveStepChart(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(180.dp),
+                        .height(200.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -74,61 +83,98 @@ fun VaporwaveStepChart(
                 }
             } else {
                 val chartRecords = records.take(7).reversed()
-                val maxSteps = maxOf(goal, chartRecords.maxOfOrNull { it.steps } ?: goal) * 1.15f
+                val maxSteps = maxOf(goal, chartRecords.maxOfOrNull { it.steps } ?: goal) * 1.2f
 
                 Canvas(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(180.dp)
+                        .height(200.dp)
                 ) {
                     val width = size.width
                     val height = size.height
-                    val bottomPadding = 30.dp.toPx()
-                    val chartHeight = height - bottomPadding
+                    val bottomPadding = 42.dp.toPx()
+                    val topPadding = 24.dp.toPx()
+                    val chartHeight = height - bottomPadding - topPadding
 
                     val barCount = chartRecords.size
                     val spacing = width / (barCount * 1.8f)
                     val barWidth = (width - (spacing * (barCount + 1))) / barCount
 
-                    // Draw goal line
-                    val goalY = chartHeight - (chartHeight * (goal / maxSteps))
+                    // Goal line
+                    val goalY = topPadding + chartHeight - (chartHeight * (goal / maxSteps))
                     drawLine(
                         color = NeonYellow,
                         start = Offset(0f, goalY),
                         end = Offset(width, goalY),
-                        strokeWidth = 2.dp.toPx(),
+                        strokeWidth = 1.5.dp.toPx(),
                         pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 12f), 0f)
                     )
 
-                    // Draw bars
-                    chartRecords.forEachIndexed { index, record ->
-                        val barHeight = (chartHeight * (record.steps / maxSteps)).coerceAtLeast(10f)
-                        val x = spacing + index * (barWidth + spacing)
-                        val y = chartHeight - barHeight
+                    // Draw goal text scale label
+                    drawIntoCanvas { canvas ->
+                        val goalLabelPaint = Paint().apply {
+                            color = NeonYellow.toArgb()
+                            textSize = 10.sp.toPx()
+                            textAlign = Paint.Align.RIGHT
+                            isAntiAlias = true
+                            isFakeBoldText = true
+                        }
+                        canvas.nativeCanvas.drawText(
+                            "Goal: ${formatStepCountShort(goal)}",
+                            width - 8.dp.toPx(),
+                            goalY - 4.dp.toPx(),
+                            goalLabelPaint
+                        )
+                    }
 
+                    // Draw bars & step values below/above
+                    chartRecords.forEachIndexed { index, record ->
+                        val barHeight = (chartHeight * (record.steps / maxSteps)).coerceAtLeast(8f)
+                        val x = spacing + index * (barWidth + spacing)
+                        val y = topPadding + chartHeight - barHeight
+
+                        val isGoalMet = record.steps >= goal
                         val gradientBrush = Brush.verticalGradient(
-                            colors = listOf(NeonPink, NeonPurple),
+                            colors = if (isGoalMet) listOf(NeonPink, NeonPurple) else listOf(NeonCyan.copy(alpha = 0.8f), NeonPurple),
                             startY = y,
-                            endY = chartHeight
+                            endY = topPadding + chartHeight
                         )
 
                         drawRoundRect(
                             brush = gradientBrush,
                             topLeft = Offset(x, y),
                             size = Size(barWidth, barHeight),
-                            cornerRadius = CornerRadius(8.dp.toPx(), 8.dp.toPx())
+                            cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx())
                         )
 
-                        // Label date below bar
+                        // Parse date
                         val parsedDate = try {
                             LocalDate.parse(record.date)
                         } catch (e: Exception) {
                             null
                         }
                         val dayLabel = parsedDate?.format(DateTimeFormatter.ofPattern("EEE")) ?: record.date.takeLast(2)
+                        val countText = formatStepCountShort(record.steps)
 
                         drawIntoCanvas { canvas ->
-                            val textPaint = Paint().apply {
+                            // Step Count Label (above or inside top of bar)
+                            val countPaint = Paint().apply {
+                                color = if (isGoalMet) NeonYellow.toArgb() else Color.White.toArgb()
+                                textSize = 10.sp.toPx()
+                                textAlign = Paint.Align.CENTER
+                                isAntiAlias = true
+                                isFakeBoldText = true
+                            }
+                            val countY = (y - 5.dp.toPx()).coerceAtLeast(topPadding - 2.dp.toPx())
+                            canvas.nativeCanvas.drawText(
+                                countText,
+                                x + barWidth / 2,
+                                countY,
+                                countPaint
+                            )
+
+                            // Day Label below bar
+                            val dayPaint = Paint().apply {
                                 color = NeonCyan.toArgb()
                                 textSize = 11.sp.toPx()
                                 textAlign = Paint.Align.CENTER
@@ -137,8 +183,8 @@ fun VaporwaveStepChart(
                             canvas.nativeCanvas.drawText(
                                 dayLabel,
                                 x + barWidth / 2,
-                                height - 6.dp.toPx(),
-                                textPaint
+                                height - 8.dp.toPx(),
+                                dayPaint
                             )
                         }
                     }
