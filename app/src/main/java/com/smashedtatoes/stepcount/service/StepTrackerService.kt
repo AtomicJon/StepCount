@@ -22,6 +22,8 @@ import com.smashedtatoes.stepcount.data.db.StepRecord
 import com.smashedtatoes.stepcount.data.pref.UserPreferencesRepository
 import com.smashedtatoes.stepcount.data.repository.StepRepositoryImpl
 import com.smashedtatoes.stepcount.domain.StepCalculator
+import com.smashedtatoes.stepcount.widget.StepCountWidgetProvider
+import com.smashedtatoes.stepcount.widget.StepCountWidgetProvider1x1
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -117,6 +119,8 @@ class StepTrackerService : Service(), SensorEventListener {
         repository.saveStepRecord(todayRecord)
 
         updateNotification(stepsToday, dailyGoal)
+        StepCountWidgetProvider.updateAllWidgets(applicationContext)
+        StepCountWidgetProvider1x1.updateAllWidgets(applicationContext)
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
