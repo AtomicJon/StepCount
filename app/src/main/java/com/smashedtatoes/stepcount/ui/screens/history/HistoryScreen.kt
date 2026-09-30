@@ -1,6 +1,7 @@
 package com.smashedtatoes.stepcount.ui.screens.history
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +14,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -31,7 +34,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.smashedtatoes.stepcount.data.db.HourlyStepRecord
 import com.smashedtatoes.stepcount.data.db.StepRecord
+import com.smashedtatoes.stepcount.ui.components.IntraDayStepChart
 import com.smashedtatoes.stepcount.ui.components.MonthCalendarView
 import com.smashedtatoes.stepcount.ui.theme.NeonCyan
 import com.smashedtatoes.stepcount.ui.theme.NeonPink
@@ -107,10 +112,29 @@ fun HistoryScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         if (uiState.viewMode == HistoryViewMode.CALENDAR) {
-            MonthCalendarView(
-                records = uiState.records,
-                goal = uiState.dailyGoal
-            )
+            val scrollState = rememberScrollState()
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+            ) {
+                MonthCalendarView(
+                    records = uiState.records,
+                    goal = uiState.dailyGoal,
+                    onDateSelected = { dateStr -> viewModel.setSelectedDate(dateStr) }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    IntraDayStepChart(
+                        hourlyRecords = uiState.hourlyRecordsForSelectedDate,
+                        dateLabel = uiState.selectedDate
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
         } else {
             if (uiState.records.isEmpty()) {
                 Box(
@@ -129,14 +153,21 @@ fun HistoryScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     items(
                         items = uiState.records,
                         key = { it.date }
                     ) { record ->
-                        HistoryRecordItem(record = record, goal = record.goal)
+                        val isSelected = record.date == uiState.selectedDate
+                        HistoryRecordItem(
+                            record = record,
+                            goal = record.goal,
+                            isSelected = isSelected,
+                            hourlyRecords = if (isSelected) uiState.hourlyRecordsForSelectedDate else emptyList(),
+                            onClick = { viewModel.setSelectedDate(record.date) }
+                        )
                     }
                 }
             }
@@ -147,7 +178,10 @@ fun HistoryScreen(
 @Composable
 fun HistoryRecordItem(
     record: StepRecord,
-    goal: Int
+    goal: Int,
+    isSelected: Boolean,
+    hourlyRecords: List<HourlyStepRecord>,
+    onClick: () -> Unit
 ) {
     val progress = (record.steps.toFloat() / goal.toFloat()).coerceIn(0f, 1f)
     val isGoalMet = record.steps >= goal && record.steps > 0
@@ -163,10 +197,12 @@ fun HistoryRecordItem(
     val formattedGoal = NumberFormat.getNumberInstance(Locale.US).format(goal)
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = VaporwaveSurface),
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, VaporwaveOutline)
+        border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, if (isSelected) NeonPink else VaporwaveOutline)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(
@@ -213,6 +249,14 @@ fun HistoryRecordItem(
                 trackColor = VaporwaveSurfaceVariant,
                 strokeCap = StrokeCap.Round
             )
+
+            if (isSelected) {
+                Spacer(modifier = Modifier.height(14.dp))
+                IntraDayStepChart(
+                    hourlyRecords = hourlyRecords,
+                    dateLabel = record.date
+                )
+            }
         }
     }
 }

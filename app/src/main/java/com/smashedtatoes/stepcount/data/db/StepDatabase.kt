@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [StepRecord::class], version = 1, exportSchema = false)
+@Database(entities = [StepRecord::class, HourlyStepRecord::class], version = 2, exportSchema = false)
 abstract class StepDatabase : RoomDatabase() {
 
     abstract fun stepDao(): StepDao
@@ -20,7 +20,9 @@ abstract class StepDatabase : RoomDatabase() {
                     context.applicationContext,
                     StepDatabase::class.java,
                     "step_database"
-                ).build()
+                )
+                .fallbackToDestructiveMigration(dropAllTables = true)
+                .build()
                 INSTANCE = instance
                 instance
             }

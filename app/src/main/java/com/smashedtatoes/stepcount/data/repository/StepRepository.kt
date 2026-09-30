@@ -1,5 +1,6 @@
 package com.smashedtatoes.stepcount.data.repository
 
+import com.smashedtatoes.stepcount.data.db.HourlyStepRecord
 import com.smashedtatoes.stepcount.data.db.StepDao
 import com.smashedtatoes.stepcount.data.db.StepRecord
 import com.smashedtatoes.stepcount.data.pref.UserPreferencesRepository
@@ -12,6 +13,8 @@ interface StepRepository {
     fun getAllRecordsFlow(): Flow<List<StepRecord>>
     fun getRecentRecordsFlow(limit: Int): Flow<List<StepRecord>>
     fun getRecordsBetweenDatesFlow(startDate: String, endDate: String): Flow<List<StepRecord>>
+    fun getHourlyRecordsForDateFlow(date: String): Flow<List<HourlyStepRecord>>
+
     val dailyGoalFlow: Flow<Int>
     val activeTrackingDateFlow: Flow<String>
     val baselineSensorReadingFlow: Flow<Int>
@@ -19,6 +22,7 @@ interface StepRepository {
     val useMilesFlow: Flow<Boolean>
 
     suspend fun saveStepRecord(record: StepRecord)
+    suspend fun saveHourlyStepRecord(record: HourlyStepRecord)
     suspend fun updateDailyGoal(goal: Int)
     suspend fun updateTrackingState(date: String, baselineSensor: Int, storedBase: Int)
     suspend fun updateUseMiles(useMiles: Boolean)
@@ -46,6 +50,10 @@ class StepRepositoryImpl(
         return stepDao.getRecordsBetweenDatesFlow(startDate, endDate)
     }
 
+    override fun getHourlyRecordsForDateFlow(date: String): Flow<List<HourlyStepRecord>> {
+        return stepDao.getHourlyRecordsForDateFlow(date)
+    }
+
     override val dailyGoalFlow: Flow<Int> = preferencesRepository.dailyGoalFlow
     override val activeTrackingDateFlow: Flow<String> = preferencesRepository.activeTrackingDateFlow
     override val baselineSensorReadingFlow: Flow<Int> = preferencesRepository.baselineSensorReadingFlow
@@ -54,6 +62,10 @@ class StepRepositoryImpl(
 
     override suspend fun saveStepRecord(record: StepRecord) {
         stepDao.insertOrUpdateRecord(record)
+    }
+
+    override suspend fun saveHourlyStepRecord(record: HourlyStepRecord) {
+        stepDao.insertOrUpdateHourlyRecord(record)
     }
 
     override suspend fun updateDailyGoal(goal: Int) {
@@ -71,12 +83,37 @@ class StepRepositoryImpl(
     override suspend fun generateSampleHistoricalData() {
         val today = LocalDate.now()
         val sampleRecords = mutableListOf<StepRecord>()
+        val hourlyRecords = mutableListOf<HourlyStepRecord>()
         val random = Random()
-        for (i in 1..30) {
+
+        val hourlyWeights = doubleArrayOf(
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.05,
+            0.15, 0.35, 0.25, 0.15, 0.10, 0.15,
+            0.30, 0.20, 0.15, 0.15, 0.20, 0.35,
+            0.30, 0.20, 0.10, 0.05, 0.0, 0.0
+        )
+        val totalWeight = hourlyWeights.sum()
+
+        for (i in 0..30) {
             val dateStr = today.minusDays(i.toLong()).toString()
-            val steps = 3000 + random.nextInt(10000)
-            sampleRecords.add(StepRecord(date = dateStr, steps = steps, goal = 10000))
+            val totalSteps = 3000 + random.nextInt(10000)
+            sampleRecords.add(StepRecord(date = dateStr, steps = totalSteps, goal = 10000))
+
+            var remainingSteps = totalSteps
+            for (h in 0..23) {
+                val targetStepsForHour = if (h == 23) {
+                    remainingSteps
+                } else {
+                    val basePortion = (totalSteps * (hourlyWeights[h] / totalWeight)).toInt()
+                    val jitter = if (basePortion > 0) random.nextInt(100) - 50 else 0
+                    (basePortion + jitter).coerceIn(0, remainingSteps)
+                }
+                remainingSteps -= targetStepsForHour
+                hourlyRecords.add(HourlyStepRecord(date = dateStr, hour = h, steps = targetStepsForHour))
+            }
         }
+
         stepDao.insertAllRecords(sampleRecords)
+        stepDao.insertAllHourlyRecords(hourlyRecords)
     }
 }

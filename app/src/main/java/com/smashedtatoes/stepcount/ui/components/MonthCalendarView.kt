@@ -49,6 +49,7 @@ import java.util.Locale
 fun MonthCalendarView(
     records: List<StepRecord>,
     goal: Int,
+    onDateSelected: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var currentYearMonth by remember { mutableStateOf(YearMonth.now()) }
@@ -153,7 +154,10 @@ fun MonthCalendarView(
                                             color = if (isSelected) NeonPink else Color.Transparent,
                                             shape = RoundedCornerShape(8.dp)
                                         )
-                                        .clickable { selectedDate = date },
+                                        .clickable {
+                                            selectedDate = date
+                                            onDateSelected(dateStr)
+                                        },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Column(

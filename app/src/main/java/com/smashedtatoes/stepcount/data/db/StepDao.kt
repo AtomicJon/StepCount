@@ -32,4 +32,17 @@ interface StepDao {
 
     @Query("DELETE FROM step_records")
     suspend fun deleteAllRecords()
+
+    // Hourly step queries
+    @Query("SELECT * FROM hourly_step_records WHERE date = :date ORDER BY hour ASC")
+    fun getHourlyRecordsForDateFlow(date: String): Flow<List<HourlyStepRecord>>
+
+    @Query("SELECT * FROM hourly_step_records WHERE date = :date ORDER BY hour ASC")
+    suspend fun getHourlyRecordsForDate(date: String): List<HourlyStepRecord>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdateHourlyRecord(record: HourlyStepRecord)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAllHourlyRecords(records: List<HourlyStepRecord>)
 }

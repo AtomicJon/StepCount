@@ -17,6 +17,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.smashedtatoes.stepcount.MainActivity
 import com.smashedtatoes.stepcount.R
+import com.smashedtatoes.stepcount.data.db.HourlyStepRecord
 import com.smashedtatoes.stepcount.data.db.StepDatabase
 import com.smashedtatoes.stepcount.data.db.StepRecord
 import com.smashedtatoes.stepcount.data.pref.UserPreferencesRepository
@@ -30,6 +31,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
+import java.time.LocalTime
 import java.util.Locale
 
 class StepTrackerService : Service(), SensorEventListener {
@@ -123,6 +125,13 @@ class StepTrackerService : Service(), SensorEventListener {
         val stepsToday = StepCalculator.calculateStepsForToday(rawSensorValue, baseline, storedBase)
         val todayRecord = StepRecord(date = todayStr, steps = stepsToday, goal = dailyGoal)
         repository.saveStepRecord(todayRecord)
+
+        // Save hourly step count
+        val currentHour = LocalTime.now().hour
+        val hourlyRecords = repository.getHourlyRecordsForDateFlow(todayStr).first()
+        val otherHoursSum = hourlyRecords.filter { it.hour != currentHour }.sumOf { it.steps }
+        val currentHourSteps = (stepsToday - otherHoursSum).coerceAtLeast(0)
+        repository.saveHourlyStepRecord(HourlyStepRecord(date = todayStr, hour = currentHour, steps = currentHourSteps))
 
         updateNotification(stepsToday, dailyGoal)
         StepCountWidgetProvider.updateAllWidgets(applicationContext)
