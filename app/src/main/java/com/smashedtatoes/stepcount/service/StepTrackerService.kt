@@ -112,6 +112,12 @@ class StepTrackerService : Service(), SensorEventListener {
         } else if (baseline < 0) {
             baseline = rawSensorValue
             repository.updateTrackingState(todayStr, baseline, storedBase)
+        } else if (rawSensorValue < baseline) {
+            // Device reboot detected! Retain steps accumulated before reboot.
+            val existingTodayRecord = repository.getTodayRecordFlow(todayStr).first()
+            storedBase = existingTodayRecord?.steps ?: storedBase
+            baseline = rawSensorValue
+            repository.updateTrackingState(todayStr, baseline, storedBase)
         }
 
         val stepsToday = StepCalculator.calculateStepsForToday(rawSensorValue, baseline, storedBase)
