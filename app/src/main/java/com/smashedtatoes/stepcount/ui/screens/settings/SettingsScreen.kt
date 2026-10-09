@@ -1,5 +1,7 @@
 package com.smashedtatoes.stepcount.ui.screens.settings
 
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -21,26 +23,47 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import com.smashedtatoes.stepcount.ui.theme.NeonCyan
 import com.smashedtatoes.stepcount.ui.theme.NeonPink
 import com.smashedtatoes.stepcount.ui.theme.NeonYellow
 import com.smashedtatoes.stepcount.ui.theme.VaporwaveOutline
 import com.smashedtatoes.stepcount.ui.theme.VaporwaveSurface
+import com.smashedtatoes.stepcount.ui.theme.VaporwaveSurfaceVariant
+import java.io.File
 import java.text.NumberFormat
 import java.util.Locale
+
+fun shareCsvFile(context: Context, file: File) {
+    val uri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        file
+    )
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/csv"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        putExtra(Intent.EXTRA_SUBJECT, "Step Count Data Export - ${file.name}")
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(Intent.createChooser(intent, "Export Step Data (CSV)"))
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -48,8 +71,15 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
+
+    LaunchedEffect(Unit) {
+        viewModel.exportFileEvent.collect { file ->
+            shareCsvFile(context, file)
+        }
+    }
 
     Column(
         modifier = modifier
@@ -195,7 +225,7 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Developer / Testing Data Card
+        // Export Data Card
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = VaporwaveSurface),
@@ -204,16 +234,16 @@ fun SettingsScreen(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "SAMPLE HISTORICAL DATA",
+                    text = "EXPORT STEP DATA",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        color = NeonYellow,
+                        color = NeonCyan,
                         fontSize = 16.sp
                     )
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Populate past 30 days with randomized step history to test the calendar and charts.",
+                    text = "Export your step history as a CSV file for local backup or analysis.",
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -221,27 +251,100 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Button(
-                    onClick = { viewModel.generateSampleData() },
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonPink),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = "Generate 30-Day Sample Data",
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
+                    OutlinedButton(
+                        onClick = { viewModel.exportDailyCsv(context) },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = VaporwaveSurfaceVariant,
+                            contentColor = NeonCyan
+                        ),
+                        border = BorderStroke(1.dp, NeonCyan),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Export Daily CSV", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+
+                    OutlinedButton(
+                        onClick = { viewModel.exportHourlyCsv(context) },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = VaporwaveSurfaceVariant,
+                            contentColor = NeonPink
+                        ),
+                        border = BorderStroke(1.dp, NeonPink),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Export Hourly CSV", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
                 }
 
-                uiState.sampleDataMessage?.let { msg ->
+                uiState.exportMessage?.let { msg ->
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = msg,
-                        color = NeonCyan,
+                        color = NeonYellow,
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp
                     )
+                }
+            }
+        }
+
+        // Developer Menu Card (Hidden in Production Builds)
+        if (uiState.isDeveloperMenuVisible) {
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = VaporwaveSurface),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, NeonYellow)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "DEVELOPER MENU",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = NeonYellow,
+                            fontSize = 16.sp
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Developer and testing tools. Hidden in production builds.",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Button(
+                        onClick = { viewModel.generateSampleData() },
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonPink),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Generate 30-Day Sample Data",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+
+                    uiState.sampleDataMessage?.let { msg ->
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = msg,
+                            color = NeonCyan,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
                 }
             }
         }

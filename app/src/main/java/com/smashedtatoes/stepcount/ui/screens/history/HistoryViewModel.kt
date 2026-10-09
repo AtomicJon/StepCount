@@ -1,5 +1,6 @@
 package com.smashedtatoes.stepcount.ui.screens.history
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -8,12 +9,17 @@ import com.smashedtatoes.stepcount.data.db.StepRecord
 import com.smashedtatoes.stepcount.data.repository.StepRepository
 import com.smashedtatoes.stepcount.domain.StepCalculator
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.io.File
 
 enum class HistoryViewMode {
     LIST,
@@ -34,6 +40,9 @@ class HistoryViewModel(
 
     private val _viewMode = MutableStateFlow(HistoryViewMode.LIST)
     private val _selectedDate = MutableStateFlow(StepCalculator.getCurrentDateString())
+
+    private val _exportFileEvent = MutableSharedFlow<File>()
+    val exportFileEvent: SharedFlow<File> = _exportFileEvent.asSharedFlow()
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<HistoryUiState> = combine(
@@ -62,6 +71,16 @@ class HistoryViewModel(
 
     fun setSelectedDate(date: String) {
         _selectedDate.value = date
+    }
+
+    fun exportDailyCsv(context: Context) {
+        viewModelScope.launch {
+            try {
+                val file = repository.exportDailyCsv(context)
+                _exportFileEvent.emit(file)
+            } catch (_: Exception) {
+            }
+        }
     }
 
     class Factory(private val repository: StepRepository) : ViewModelProvider.Factory {

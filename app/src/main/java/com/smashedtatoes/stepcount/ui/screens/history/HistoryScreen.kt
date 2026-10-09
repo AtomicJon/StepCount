@@ -20,24 +20,31 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.smashedtatoes.stepcount.R
 import com.smashedtatoes.stepcount.data.db.HourlyStepRecord
 import com.smashedtatoes.stepcount.data.db.StepRecord
 import com.smashedtatoes.stepcount.ui.components.IntraDayStepChart
 import com.smashedtatoes.stepcount.ui.components.MonthCalendarView
+import com.smashedtatoes.stepcount.ui.screens.settings.shareCsvFile
 import com.smashedtatoes.stepcount.ui.theme.NeonCyan
 import com.smashedtatoes.stepcount.ui.theme.NeonPink
 import com.smashedtatoes.stepcount.ui.theme.NeonYellow
@@ -54,24 +61,48 @@ fun HistoryScreen(
     viewModel: HistoryViewModel,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.exportFileEvent.collect { file ->
+            shareCsvFile(context, file)
+        }
+    }
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(vertical = 16.dp)
     ) {
-        // Title
-        Text(
-            text = "STEP HISTORY",
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.ExtraBold,
-                color = NeonCyan,
-                fontSize = 24.sp,
-                letterSpacing = 2.sp
-            ),
-            modifier = Modifier.padding(horizontal = 20.dp)
-        )
+        // Title Row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "STEP HISTORY",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    color = NeonCyan,
+                    fontSize = 24.sp,
+                    letterSpacing = 2.sp
+                )
+            )
+
+            IconButton(
+                onClick = { viewModel.exportDailyCsv(context) }
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_export),
+                    contentDescription = "Export CSV",
+                    tint = NeonCyan
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -184,12 +215,12 @@ fun HistoryRecordItem(
     onClick: () -> Unit
 ) {
     val progress = (record.steps.toFloat() / goal.toFloat()).coerceIn(0f, 1f)
-    val isGoalMet = record.steps >= goal && record.steps > 0
+    val isGoalMet = (record.steps >= goal) && record.steps > 0
 
     val formattedDate = try {
         val parsed = LocalDate.parse(record.date)
         parsed.format(DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy"))
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         record.date
     }
 

@@ -18,6 +18,9 @@ interface StepDao {
     @Query("SELECT * FROM step_records ORDER BY date DESC")
     fun getAllRecordsFlow(): Flow<List<StepRecord>>
 
+    @Query("SELECT * FROM step_records ORDER BY date DESC")
+    suspend fun getAllRecords(): List<StepRecord>
+
     @Query("SELECT * FROM step_records ORDER BY date DESC LIMIT :limit")
     fun getRecentRecordsFlow(limit: Int): Flow<List<StepRecord>>
 
@@ -39,6 +42,9 @@ interface StepDao {
 
     @Query("SELECT * FROM hourly_step_records WHERE date = :date ORDER BY hour ASC")
     suspend fun getHourlyRecordsForDate(date: String): List<HourlyStepRecord>
+
+    @Query("SELECT * FROM hourly_step_records ORDER BY date DESC, hour ASC")
+    suspend fun getAllHourlyRecords(): List<HourlyStepRecord>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateHourlyRecord(record: HourlyStepRecord)
