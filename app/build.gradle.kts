@@ -26,6 +26,14 @@ android {
                 enable = false
             }
         }
+        create("preview") {
+            initWith(getByName("release"))
+            optimization {
+                enable = true
+            }
+            isProfileable = true
+            signingConfig = signingConfigs.getByName("debug")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
