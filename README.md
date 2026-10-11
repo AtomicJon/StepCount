@@ -4,6 +4,15 @@ A simple Android step counter that uses your phone's built-in step sensor. All d
 
 This is a personal project that I'm sharing in case others find it useful. There's no guarantee of long-term support, updates or fixes.
 
+## Screenshots
+
+<p>
+  <img src="docs/screenshots/home.png" alt="Home screen" width="200">
+  <img src="docs/screenshots/history.png" alt="History list with hourly breakdown" width="200">
+  <img src="docs/screenshots/calendar.png" alt="History month calendar" width="200">
+  <img src="docs/screenshots/settings.png" alt="Settings screen" width="200">
+</p>
+
 ## Features
 
 - Daily step count with distance and calorie estimates
